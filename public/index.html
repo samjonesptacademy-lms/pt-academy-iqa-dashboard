@@ -576,24 +576,83 @@
         function filterTable() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
             const portfolioFilter = document.getElementById('portfolio-filter').value.toLowerCase();
-            const rows = document.querySelectorAll('tbody tr');
+            const table = document.querySelector('tbody');
+            
+            if (!table) return;
 
-            rows.forEach(row => {
+            // Get all rows as an array
+            const allRows = Array.from(document.querySelectorAll('tbody tr'));
+            
+            // Get the view type to know how many columns
+            const headerCells = document.querySelectorAll('thead th');
+            const isDoneView = headerCells.length > 3; // Done view has more columns
+
+            // Filter which rows should be visible
+            const visibleRows = allRows.filter(row => {
+                const cells = row.querySelectorAll('td');
                 const text = row.textContent.toLowerCase();
                 const matchesSearch = text.includes(searchTerm);
                 
-                // If portfolio filter is set, check if row contains that portfolio
                 let matchesPortfolio = true;
-                if (portfolioFilter) {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length > 1) {
-                        // Portfolio name is in the second column
-                        const portfolioCell = cells[1].textContent.toLowerCase();
-                        matchesPortfolio = portfolioCell === portfolioFilter;
-                    }
+                if (portfolioFilter && cells.length > 1) {
+                    const portfolioCell = cells[1].textContent.toLowerCase();
+                    matchesPortfolio = portfolioCell === portfolioFilter;
                 }
                 
-                row.style.display = (matchesSearch && matchesPortfolio) ? '' : 'none';
+                return matchesSearch && matchesPortfolio;
+            });
+
+            // Clear the table body
+            table.innerHTML = '';
+
+            // Rebuild table with correct rowspans
+            let currentLearner = null;
+            let learnerRows = [];
+
+            visibleRows.forEach((row, index) => {
+                const cells = Array.from(row.querySelectorAll('td'));
+                const learnerName = cells[0] ? cells[0].textContent.trim() : '';
+
+                if (learnerName && learnerName !== '') {
+                    // This is a new learner
+                    if (currentLearner && learnerRows.length > 0) {
+                        // Add the previous learner's rows
+                        addLearnerRows(table, currentLearner, learnerRows, isDoneView);
+                    }
+                    currentLearner = learnerName;
+                    learnerRows = [cells];
+                } else if (currentLearner) {
+                    // This is a continuation of the current learner
+                    learnerRows.push(cells);
+                }
+            });
+
+            // Don't forget the last learner
+            if (currentLearner && learnerRows.length > 0) {
+                addLearnerRows(table, currentLearner, learnerRows, isDoneView);
+            }
+        }
+
+        function addLearnerRows(table, learnerName, rowCells, isDoneView) {
+            rowCells.forEach((cells, index) => {
+                const tr = document.createElement('tr');
+                
+                if (index === 0) {
+                    // First row: add learner name cell with rowspan
+                    const learnerCell = document.createElement('td');
+                    learnerCell.innerHTML = `<strong>${learnerName}</strong>`;
+                    learnerCell.rowSpan = rowCells.length;
+                    tr.appendChild(learnerCell);
+                }
+                
+                // Add remaining cells (portfolio, count, passed at, passed by, etc)
+                for (let i = 1; i < cells.length; i++) {
+                    const td = document.createElement('td');
+                    td.innerHTML = cells[i].innerHTML;
+                    tr.appendChild(td);
+                }
+                
+                table.appendChild(tr);
             });
         }
 
