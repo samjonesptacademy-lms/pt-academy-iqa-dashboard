@@ -383,8 +383,15 @@
         // Get this from: https://script.google.com/ > Your Project > Deploy > New Deployment
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXDLwx_32YNHnDpoVUX4KOYhAUs8805GRokb8REjriyvo7VfpCLtL8XgmX17rlefth/exec';
 
-        // Track which view is active
-        let currentView = 'pending';
+        function formatUKDate(isoString) {
+            if (!isoString) return 'N/A';
+            try {
+                const date = new Date(isoString);
+                return date.toLocaleDateString('en-GB');
+            } catch (e) {
+                return isoString;
+            }
+        }
         let pendingData = null;
         let doneData = null;
 
@@ -476,7 +483,7 @@
                 byLearner[learnerId].assessments.push({
                     name: portfolioName,
                     count: count,
-                    passedAt: passedAt,
+                    passedAt: passedAt ? formatUKDate(passedAt) : null,
                     passedBy: passedBy
                 });
 
