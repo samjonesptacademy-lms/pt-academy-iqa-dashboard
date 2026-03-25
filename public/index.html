@@ -312,8 +312,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>Pending IQA Submissions</h1>
-            <p class="subtitle">View of learners awaiting Internal Quality Assurance review</p>
+            <h1>Online IQA Submissions</h1>
+            <p class="subtitle">View of learners and their Internal Quality Assurance status</p>
             
             <div style="margin-top: 15px; margin-bottom: 15px;">
                 <label style="font-size: 14px; color: #333; font-weight: 600;">View:</label>
@@ -542,6 +542,16 @@
             const sortedLearners = Object.values(byLearner).sort((a, b) => 
                 a.name.localeCompare(b.name)
             );
+
+            // For done view, sort assessments by passed date (most recent first)
+            if (viewType === 'done') {
+                sortedLearners.forEach(learner => {
+                    learner.assessments.sort((a, b) => {
+                        if (!a.passedAt || !b.passedAt) return 0;
+                        return new Date(b.passedAt) - new Date(a.passedAt);
+                    });
+                });
+            }
 
             sortedLearners.forEach(learner => {
                 learner.assessments.forEach((assessment, index) => {
