@@ -119,7 +119,16 @@
             font-size: 14px;
         }
 
-        .search-box:focus {
+        select {
+            padding: 10px 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        select:focus {
             outline: none;
             border-color: #d4af37;
             box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
@@ -343,6 +352,14 @@
             </div>
 
             <div class="controls">
+                <select 
+                    id="portfolio-filter" 
+                    class="search-box"
+                    style="flex: 0 0 auto; width: auto;"
+                    onchange="filterTable()"
+                >
+                    <option value="">All Portfolios</option>
+                </select>
                 <input 
                     type="text" 
                     class="search-box" 
@@ -430,12 +447,15 @@
             // Group by learner
             const byLearner = {};
             let totalSubmissions = 0;
+            const portfolios = new Set();
 
             data.forEach(row => {
                 const learnerId = row[0]; // User ID
                 const learnerName = row[1]; // Learner Name
                 const portfolioName = row[2]; // Portfolio Name
                 const count = parseInt(row[3]) || 0; // Count
+                
+                portfolios.add(portfolioName);
                 
                 // Different column indices based on view type
                 let passedAt = null;
@@ -462,6 +482,29 @@
 
                 totalSubmissions += count;
             });
+
+            // Update portfolio filter dropdown
+            const filterSelect = document.getElementById('portfolio-filter');
+            const currentValue = filterSelect.value;
+            const sortedPortfolios = Array.from(portfolios).sort();
+            
+            // Clear existing options except "All Portfolios"
+            filterSelect.innerHTML = '<option value="">All Portfolios</option>';
+            
+            // Add portfolio options
+            sortedPortfolios.forEach(portfolio => {
+                const option = document.createElement('option');
+                option.value = portfolio;
+                option.textContent = portfolio;
+                filterSelect.appendChild(option);
+            });
+            
+            // Restore previous filter value if it still exists
+            if (currentValue && sortedPortfolios.includes(currentValue)) {
+                filterSelect.value = currentValue;
+            } else {
+                filterSelect.value = '';
+            }
 
             // Build HTML table
             let html = `
@@ -532,11 +575,25 @@
 
         function filterTable() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const portfolioFilter = document.getElementById('portfolio-filter').value.toLowerCase();
             const rows = document.querySelectorAll('tbody tr');
 
             rows.forEach(row => {
                 const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
+                const matchesSearch = text.includes(searchTerm);
+                
+                // If portfolio filter is set, check if row contains that portfolio
+                let matchesPortfolio = true;
+                if (portfolioFilter) {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length > 1) {
+                        // Portfolio name is in the second column
+                        const portfolioCell = cells[1].textContent.toLowerCase();
+                        matchesPortfolio = portfolioCell === portfolioFilter;
+                    }
+                }
+                
+                row.style.display = (matchesSearch && matchesPortfolio) ? '' : 'none';
             });
         }
 
@@ -562,6 +619,10 @@
             currentView = viewType;
             const pendingBtn = document.getElementById('toggle-pending');
             const doneBtn = document.getElementById('toggle-done');
+            
+            // Reset filters when switching views
+            document.getElementById('search-input').value = '';
+            document.getElementById('portfolio-filter').value = '';
             
             if (viewType === 'pending') {
                 pendingBtn.style.background = '#000000';
