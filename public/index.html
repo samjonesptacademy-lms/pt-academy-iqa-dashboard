@@ -314,7 +314,7 @@
         <header>
             <h1>Online IQA Submissions</h1>
             <p class="subtitle">View of learners and their Internal Quality Assurance status</p>
-            
+
             <div style="margin-top: 15px; margin-bottom: 15px;">
                 <label style="font-size: 14px; color: #333; font-weight: 600;">View:</label>
                 <div style="display: flex; gap: 10px; margin-top: 8px;">
@@ -322,7 +322,7 @@
                     <button id="toggle-done" style="padding: 8px 16px; background: #cccccc; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">Done</button>
                 </div>
             </div>
-            
+
             <div class="status-bar">
                 <div class="status-card">
                     <div class="number" id="total-learners">0</div>
@@ -337,7 +337,7 @@
                     <div class="label">Portfolio Types</div>
                 </div>
             </div>
-            
+
             <div style="font-size: 12px; color: #666; margin-top: 20px; text-align: right;">
                 <span id="last-updated-header"></span>
             </div>
@@ -352,18 +352,18 @@
             </div>
 
             <div class="controls">
-                <select 
-                    id="portfolio-filter" 
+                <select
+                    id="portfolio-filter"
                     class="search-box"
                     style="flex: 0 0 auto; width: auto;"
                     onchange="filterTable()"
                 >
                     <option value="">All Portfolios</option>
                 </select>
-                <input 
-                    type="text" 
-                    class="search-box" 
-                    id="search-input" 
+                <input
+                    type="text"
+                    class="search-box"
+                    id="search-input"
                     placeholder="Search by learner name or portfolio..."
                     onkeyup="filterTable()"
                 >
@@ -466,19 +466,24 @@
                 const learnerName = row[1]; // Learner Name
                 const portfolioName = row[2]; // Portfolio Name
                 const count = parseInt(row[3]) || 0; // Count
-                
+
                 portfolios.add(portfolioName);
-                
-                // Different column indices based on view type
+
+                // Column indices based on sheet structure:
+                // 0: User ID, 1: Learner Name, 2: Portfolio, 3: Count
+                // 4: Is Assessor, 5: Submitted At (pending) / Passed At (done)
+                // 6: Last Updated (pending) / Passed By (done) / Last Updated (done)
                 let submittedAt = null;
                 let passedAt = null;
                 let passedBy = null;
-                
+
                 if (viewType === 'pending') {
-                    submittedAt = row[4]; // Submitted At (column 4)
+                    // Pending columns: User ID | Learner Name | Portfolio | Count | Is Assessor | Submitted At | Last Updated
+                    submittedAt = row[5]; // Submitted At is column 5
                 } else if (viewType === 'done') {
-                    passedAt = row[4]; // Passed At (column 4)
-                    passedBy = row[5]; // Passed By (column 5)
+                    // Done columns: User ID | Learner Name | Portfolio | Count | Is Assessor | Passed At | Passed By | Last Updated
+                    passedAt = row[5]; // Passed At is column 5
+                    passedBy = row[6]; // Passed By is column 6
                 }
 
                 if (!byLearner[learnerId]) {
@@ -504,10 +509,10 @@
             const filterSelect = document.getElementById('portfolio-filter');
             const currentValue = filterSelect.value;
             const sortedPortfolios = Array.from(portfolios).sort();
-            
+
             // Clear existing options except "All Portfolios"
             filterSelect.innerHTML = '<option value="">All Portfolios</option>';
-            
+
             // Add portfolio options
             sortedPortfolios.forEach(portfolio => {
                 const option = document.createElement('option');
@@ -515,7 +520,7 @@
                 option.textContent = portfolio;
                 filterSelect.appendChild(option);
             });
-            
+
             // Restore previous filter value if it still exists
             if (currentValue && sortedPortfolios.includes(currentValue)) {
                 filterSelect.value = currentValue;
@@ -531,18 +536,18 @@
                             <th>Learner Name</th>
                             <th>Portfolio</th>
                             <th>Pending Count</th>`;
-            
+
             if (viewType === 'pending') {
                 html += `
                             <th>Submitted At</th>`;
             }
-            
+
             if (viewType === 'done') {
                 html += `
                             <th>Passed At</th>
                             <th>Passed By</th>`;
             }
-            
+
             html += `
                         </tr>
                     </thead>
@@ -551,7 +556,7 @@
 
             // Sort based on view type
             let sortedLearners;
-            
+
             if (viewType === 'pending') {
                 // Keep API order (oldest first, most recent last)
                 sortedLearners = insertionOrder.map(id => byLearner[id]);
@@ -573,18 +578,18 @@
                             ${index === 0 ? `<td rowspan="${learner.assessments.length}"><strong>${learner.name}</strong></td>` : ''}
                             <td>${assessment.name}</td>
                             <td><span class="count-badge">${assessment.count}</span></td>`;
-                    
+
                     if (viewType === 'pending') {
                         html += `
                             <td>${assessment.submittedAt || 'N/A'}</td>`;
                     }
-                    
+
                     if (viewType === 'done') {
                         html += `
                             <td>${assessment.passedAt || 'N/A'}</td>
                             <td>${assessment.passedBy || 'N/A'}</td>`;
                     }
-                    
+
                     html += `
                         </tr>
                     `;
@@ -601,7 +606,7 @@
             // Update stats
             document.getElementById('total-learners').textContent = sortedLearners.length;
             document.getElementById('total-submissions').textContent = totalSubmissions;
-            
+
             // Count unique portfolio types
             const portfolioTypes = new Set();
             sortedLearners.forEach(learner => {
@@ -610,7 +615,7 @@
                 });
             });
             document.getElementById('portfolio-types').textContent = portfolioTypes.size;
-            
+
             // Update timestamp to the latest data timestamp
             const latestTime = getLatestDataTimestamp(data);
             if (latestTime) {
@@ -623,12 +628,12 @@
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
             const portfolioFilter = document.getElementById('portfolio-filter').value.toLowerCase();
             const table = document.querySelector('tbody');
-            
+
             if (!table) return;
 
             // Get all rows as an array
             const allRows = Array.from(document.querySelectorAll('tbody tr'));
-            
+
             // Get the view type to know how many columns
             const headerCells = document.querySelectorAll('thead th');
             const isDoneView = headerCells.length > 3; // Done view has more columns
@@ -638,13 +643,13 @@
                 const cells = row.querySelectorAll('td');
                 const text = row.textContent.toLowerCase();
                 const matchesSearch = text.includes(searchTerm);
-                
+
                 let matchesPortfolio = true;
                 if (portfolioFilter && cells.length > 1) {
                     const portfolioCell = cells[1].textContent.toLowerCase();
                     matchesPortfolio = portfolioCell === portfolioFilter;
                 }
-                
+
                 return matchesSearch && matchesPortfolio;
             });
 
@@ -682,7 +687,7 @@
         function addLearnerRows(table, learnerName, rowCells, isDoneView) {
             rowCells.forEach((cells, index) => {
                 const tr = document.createElement('tr');
-                
+
                 if (index === 0) {
                     // First row: add learner name cell with rowspan
                     const learnerCell = document.createElement('td');
@@ -690,14 +695,14 @@
                     learnerCell.rowSpan = rowCells.length;
                     tr.appendChild(learnerCell);
                 }
-                
+
                 // Add remaining cells (portfolio, count, passed at, passed by, etc)
                 for (let i = 1; i < cells.length; i++) {
                     const td = document.createElement('td');
                     td.innerHTML = cells[i].innerHTML;
                     tr.appendChild(td);
                 }
-                
+
                 table.appendChild(tr);
             });
         }
@@ -724,17 +729,17 @@
             currentView = viewType;
             const pendingBtn = document.getElementById('toggle-pending');
             const doneBtn = document.getElementById('toggle-done');
-            
+
             // Reset filters when switching views
             document.getElementById('search-input').value = '';
             document.getElementById('portfolio-filter').value = '';
-            
+
             if (viewType === 'pending') {
                 pendingBtn.style.background = '#000000';
                 pendingBtn.style.color = 'white';
                 doneBtn.style.background = '#cccccc';
                 doneBtn.style.color = '#333';
-                
+
                 if (pendingData && pendingData.length > 0) {
                     displayData(pendingData, 'pending');
                 } else {
@@ -745,7 +750,7 @@
                 doneBtn.style.color = 'white';
                 pendingBtn.style.background = '#cccccc';
                 pendingBtn.style.color = '#333';
-                
+
                 if (doneData && doneData.length > 0) {
                     displayData(doneData, 'done');
                 } else {
@@ -764,16 +769,15 @@
 
         function getLatestDataTimestamp(data) {
             if (!data || data.length === 0) return null;
-            
-            // Last Updated is in column 5 (index 5) for pending, column 6 (index 6) for done
-            // But let's get the last column which should be the timestamp
+
+            // Last Updated is the final column in the data
             const timestamps = data.map(row => {
                 const lastCol = row[row.length - 1];
                 return new Date(lastCol);
             }).filter(date => !isNaN(date.getTime()));
-            
+
             if (timestamps.length === 0) return null;
-            
+
             // Return the most recent timestamp
             return new Date(Math.max(...timestamps.map(d => d.getTime())));
         }
@@ -781,7 +785,7 @@
         // Load data on page load
         window.addEventListener('load', () => {
             loadData();
-            
+
             // Set up toggle buttons
             document.getElementById('toggle-pending').addEventListener('click', () => switchView('pending'));
             document.getElementById('toggle-done').addEventListener('click', () => switchView('done'));
