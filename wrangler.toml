@@ -1,0 +1,9 @@
+name = "pt-academy-iqa-dashboard"
+type = "javascript"
+compatibility_date = "2024-01-01"
+
+[env.production]
+name = "pt-academy-iqa-dashboard"
+routes = [
+  { pattern = "ptacademy-iqa.pages.dev", zone_name = "pages.dev" }
+]
