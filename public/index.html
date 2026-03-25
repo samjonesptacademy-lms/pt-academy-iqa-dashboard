@@ -306,17 +306,25 @@
             <h1>Pending IQA Submissions</h1>
             <p class="subtitle">View of learners awaiting Internal Quality Assurance review</p>
             
+            <div style="margin-top: 15px; margin-bottom: 15px;">
+                <label style="font-size: 14px; color: #333; font-weight: 600;">View:</label>
+                <div style="display: flex; gap: 10px; margin-top: 8px;">
+                    <button id="toggle-pending" style="padding: 8px 16px; background: #000000; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">Pending</button>
+                    <button id="toggle-done" style="padding: 8px 16px; background: #cccccc; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">Done</button>
+                </div>
+            </div>
+            
             <div class="status-bar">
                 <div class="status-card">
                     <div class="number" id="total-learners">0</div>
-                    <div class="label">Learners Pending</div>
+                    <div class="label">Learners</div>
                 </div>
                 <div class="status-card">
-                    <div class="number" id="total-pending">0</div>
+                    <div class="number" id="total-submissions">0</div>
                     <div class="label">Total Submissions</div>
                 </div>
                 <div class="status-card">
-                    <div class="number" id="assessment-types">0</div>
+                    <div class="number" id="portfolio-types">0</div>
                     <div class="label">Portfolio Types</div>
                 </div>
             </div>
@@ -356,7 +364,12 @@
     <script>
         // ⚠️ IMPORTANT: Replace with your actual Google Apps Script URL
         // Get this from: https://script.google.com/ > Your Project > Deploy > New Deployment
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXDLwx_32YNHnDpoVUX4KOYhAUs8805GRokb8REjriyvo7VfpCLtL8XgmX17rlefth/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID_HERE/exec';
+
+        // Track which view is active
+        let currentView = 'pending';
+        let pendingData = null;
+        let doneData = null;
 
         async function loadData() {
             try {
@@ -367,14 +380,40 @@
                     return;
                 }
 
-                const response = await fetch(APPS_SCRIPT_URL + '?action=getPendingIQA');
-                const result = await response.json();
+                // Load pending IQA data
+                const pendingResponse = await fetch(APPS_SCRIPT_URL + '?action=getPendingIQA');
+                const pendingResult = await pendingResponse.json();
 
-                if (result.success && result.data) {
-                    displayData(result.data);
-                    updateLastUpdated(result.timestamp);
+                if (pendingResult.success && pendingResult.data) {
+                    pendingData = pendingResult.data;
+                    updateLastUpdated(pendingResult.timestamp);
                 } else {
-                    showError('No data available. Please run "Write to Sheet" in the IQA Monitor first.');
+                    pendingData = null;
+                }
+
+                // Load done IQA data
+                const doneResponse = await fetch(APPS_SCRIPT_URL + '?action=getDoneIQA');
+                const doneResult = await doneResponse.json();
+
+                if (doneResult.success && doneResult.data) {
+                    doneData = doneResult.data;
+                } else {
+                    doneData = null;
+                }
+
+                // Display the current view
+                if (currentView === 'pending') {
+                    if (pendingData && pendingData.length > 0) {
+                        displayData(pendingData, 'pending');
+                    } else {
+                        showEmptyState();
+                    }
+                } else {
+                    if (doneData && doneData.length > 0) {
+                        displayData(doneData, 'done');
+                    } else {
+                        showEmptyState();
+                    }
                 }
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -382,7 +421,7 @@
             }
         }
 
-        function displayData(data) {
+        function displayData(data, viewType) {
             if (!data || data.length === 0) {
                 showEmptyState();
                 return;
@@ -395,9 +434,17 @@
             data.forEach(row => {
                 const learnerId = row[0]; // User ID
                 const learnerName = row[1]; // Learner Name
-                const assessmentName = row[2]; // Assessment Name
+                const portfolioName = row[2]; // Portfolio Name
                 const count = parseInt(row[3]) || 0; // Count
-                const isAssessor = row[4] === 'Yes'; // Is Assessor
+                
+                // Different column indices based on view type
+                let passedAt = null;
+                let passedBy = null;
+                
+                if (viewType === 'done') {
+                    passedAt = row[4]; // Passed At
+                    passedBy = row[5]; // Passed By
+                }
 
                 if (!byLearner[learnerId]) {
                     byLearner[learnerId] = {
@@ -407,9 +454,10 @@
                 }
 
                 byLearner[learnerId].assessments.push({
-                    name: assessmentName,
+                    name: portfolioName,
                     count: count,
-                    isAssessor: isAssessor
+                    passedAt: passedAt,
+                    passedBy: passedBy
                 });
 
                 totalSubmissions += count;
@@ -422,7 +470,15 @@
                         <tr>
                             <th>Learner Name</th>
                             <th>Portfolio</th>
-                            <th>Pending Count</th>
+                            <th>Pending Count</th>`;
+            
+            if (viewType === 'done') {
+                html += `
+                            <th>Passed At</th>
+                            <th>Passed By</th>`;
+            }
+            
+            html += `
                         </tr>
                     </thead>
                     <tbody>
@@ -439,7 +495,15 @@
                         <tr>
                             ${index === 0 ? `<td rowspan="${learner.assessments.length}"><strong>${learner.name}</strong></td>` : ''}
                             <td>${assessment.name}</td>
-                            <td><span class="count-badge">${assessment.count}</span></td>
+                            <td><span class="count-badge">${assessment.count}</span></td>`;
+                    
+                    if (viewType === 'done') {
+                        html += `
+                            <td>${assessment.passedAt || 'N/A'}</td>
+                            <td>${assessment.passedBy || 'N/A'}</td>`;
+                    }
+                    
+                    html += `
                         </tr>
                     `;
                 });
@@ -454,16 +518,16 @@
 
             // Update stats
             document.getElementById('total-learners').textContent = sortedLearners.length;
-            document.getElementById('total-pending').textContent = totalSubmissions;
+            document.getElementById('total-submissions').textContent = totalSubmissions;
             
-            // Count unique assessment types
-            const assessmentTypes = new Set();
+            // Count unique portfolio types
+            const portfolioTypes = new Set();
             sortedLearners.forEach(learner => {
                 learner.assessments.forEach(assessment => {
-                    assessmentTypes.add(assessment.name);
+                    portfolioTypes.add(assessment.name);
                 });
             });
-            document.getElementById('assessment-types').textContent = assessmentTypes.size;
+            document.getElementById('portfolio-types').textContent = portfolioTypes.size;
         }
 
         function filterTable() {
@@ -484,13 +548,44 @@
             document.getElementById('content').innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">✓</div>
-                    <h3>No Pending IQA Submissions</h3>
+                    <h3>No IQA Submissions</h3>
                     <p>All learners are up to date with their quality assurance reviews.</p>
                 </div>
             `;
             document.getElementById('total-learners').textContent = '0';
-            document.getElementById('total-pending').textContent = '0';
-            document.getElementById('assessment-types').textContent = '0';
+            document.getElementById('total-submissions').textContent = '0';
+            document.getElementById('portfolio-types').textContent = '0';
+        }
+
+        // Toggle view handler
+        function switchView(viewType) {
+            currentView = viewType;
+            const pendingBtn = document.getElementById('toggle-pending');
+            const doneBtn = document.getElementById('toggle-done');
+            
+            if (viewType === 'pending') {
+                pendingBtn.style.background = '#000000';
+                pendingBtn.style.color = 'white';
+                doneBtn.style.background = '#cccccc';
+                doneBtn.style.color = '#333';
+                
+                if (pendingData && pendingData.length > 0) {
+                    displayData(pendingData, 'pending');
+                } else {
+                    showEmptyState();
+                }
+            } else {
+                doneBtn.style.background = '#000000';
+                doneBtn.style.color = 'white';
+                pendingBtn.style.background = '#cccccc';
+                pendingBtn.style.color = '#333';
+                
+                if (doneData && doneData.length > 0) {
+                    displayData(doneData, 'done');
+                } else {
+                    showEmptyState();
+                }
+            }
         }
 
         function updateLastUpdated(timestamp) {
@@ -502,7 +597,13 @@
         }
 
         // Load data on page load
-        window.addEventListener('load', loadData);
+        window.addEventListener('load', () => {
+            loadData();
+            
+            // Set up toggle buttons
+            document.getElementById('toggle-pending').addEventListener('click', () => switchView('pending'));
+            document.getElementById('toggle-done').addEventListener('click', () => switchView('done'));
+        });
 
         // Auto-refresh every 5 minutes
         setInterval(loadData, 5 * 60 * 1000);
