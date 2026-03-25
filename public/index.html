@@ -571,6 +571,13 @@
                 });
             });
             document.getElementById('portfolio-types').textContent = portfolioTypes.size;
+            
+            // Update timestamp to the latest data timestamp
+            const latestTime = getLatestDataTimestamp(data);
+            if (latestTime) {
+                const formatted = latestTime.toLocaleString('en-GB');
+                document.getElementById('last-updated-header').textContent = `Data from: ${formatted}`;
+            }
         }
 
         function filterTable() {
@@ -714,6 +721,22 @@
                 const formatted = date.toLocaleString('en-GB');
                 document.getElementById('last-updated-header').textContent = `Data from: ${formatted}`;
             }
+        }
+
+        function getLatestDataTimestamp(data) {
+            if (!data || data.length === 0) return null;
+            
+            // Last Updated is in column 5 (index 5) for pending, column 6 (index 6) for done
+            // But let's get the last column which should be the timestamp
+            const timestamps = data.map(row => {
+                const lastCol = row[row.length - 1];
+                return new Date(lastCol);
+            }).filter(date => !isNaN(date.getTime()));
+            
+            if (timestamps.length === 0) return null;
+            
+            // Return the most recent timestamp
+            return new Date(Math.max(...timestamps.map(d => d.getTime())));
         }
 
         // Load data on page load
