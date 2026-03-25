@@ -383,6 +383,12 @@
         // Get this from: https://script.google.com/ > Your Project > Deploy > New Deployment
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXDLwx_32YNHnDpoVUX4KOYhAUs8805GRokb8REjriyvo7VfpCLtL8XgmX17rlefth/exec';
 
+        // Track which view is active
+        let currentView = 'pending';
+        let pendingData = null;
+        let doneData = null;
+        let learnerCache = null;
+
         function formatUKDate(isoString) {
             if (!isoString) return 'N/A';
             try {
@@ -392,8 +398,6 @@
                 return isoString;
             }
         }
-        let pendingData = null;
-        let doneData = null;
 
         async function loadData() {
             try {
