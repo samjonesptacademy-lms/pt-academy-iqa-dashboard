@@ -470,12 +470,15 @@
                 portfolios.add(portfolioName);
                 
                 // Different column indices based on view type
+                let submittedAt = null;
                 let passedAt = null;
                 let passedBy = null;
                 
-                if (viewType === 'done') {
-                    passedAt = row[4]; // Passed At
-                    passedBy = row[5]; // Passed By
+                if (viewType === 'pending') {
+                    submittedAt = row[4]; // Submitted At (column 4)
+                } else if (viewType === 'done') {
+                    passedAt = row[4]; // Passed At (column 4)
+                    passedBy = row[5]; // Passed By (column 5)
                 }
 
                 if (!byLearner[learnerId]) {
@@ -489,6 +492,7 @@
                 byLearner[learnerId].assessments.push({
                     name: portfolioName,
                     count: count,
+                    submittedAt: submittedAt || 'N/A',
                     passedAt: passedAt ? formatUKDate(passedAt) : null,
                     passedBy: passedBy
                 });
@@ -528,6 +532,11 @@
                             <th>Portfolio</th>
                             <th>Pending Count</th>`;
             
+            if (viewType === 'pending') {
+                html += `
+                            <th>Submitted At</th>`;
+            }
+            
             if (viewType === 'done') {
                 html += `
                             <th>Passed At</th>
@@ -564,6 +573,11 @@
                             ${index === 0 ? `<td rowspan="${learner.assessments.length}"><strong>${learner.name}</strong></td>` : ''}
                             <td>${assessment.name}</td>
                             <td><span class="count-badge">${assessment.count}</span></td>`;
+                    
+                    if (viewType === 'pending') {
+                        html += `
+                            <td>${assessment.submittedAt || 'N/A'}</td>`;
+                    }
                     
                     if (viewType === 'done') {
                         html += `
