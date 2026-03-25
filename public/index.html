@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -32,7 +32,7 @@
         }
 
         h1 {
-            color: #1a5490;
+            color: #000000;
             font-size: 28px;
             margin-bottom: 10px;
         }
@@ -55,13 +55,13 @@
             padding: 15px;
             background: #f8f9fa;
             border-radius: 8px;
-            border-left: 4px solid #1a5490;
+            border-left: 4px solid #d4af37;
         }
 
         .status-card .number {
             font-size: 24px;
             font-weight: bold;
-            color: #1a5490;
+            color: #000000;
         }
 
         .status-card .label {
@@ -89,7 +89,7 @@
 
         button {
             padding: 10px 20px;
-            background: #1a5490;
+            background: #000000;
             color: white;
             border: none;
             border-radius: 6px;
@@ -100,9 +100,10 @@
         }
 
         button:hover {
-            background: #154080;
+            background: #d4af37;
+            color: #000000;
             transform: translateY(-1px);
-            box-shadow: 0 2px 6px rgba(26, 84, 144, 0.3);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
 
         button:active {
@@ -120,8 +121,8 @@
 
         .search-box:focus {
             outline: none;
-            border-color: #1a5490;
-            box-shadow: 0 0 0 3px rgba(26, 84, 144, 0.1);
+            border-color: #d4af37;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
         }
 
         .loading {
@@ -135,7 +136,7 @@
             width: 30px;
             height: 30px;
             border: 3px solid #f0f0f0;
-            border-top: 3px solid #1a5490;
+            border-top: 3px solid #d4af37;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 15px;
@@ -190,11 +191,12 @@
         .assessor-badge {
             display: inline-block;
             padding: 4px 12px;
-            background: #e3f2fd;
-            color: #1a5490;
+            background: #fff8e1;
+            color: #d4af37;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
+            border: 1px solid #d4af37;
         }
 
         .learner-badge {
@@ -210,8 +212,8 @@
         .count-badge {
             display: inline-block;
             padding: 4px 10px;
-            background: #1a5490;
-            color: white;
+            background: #000000;
+            color: #d4af37;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
@@ -302,7 +304,7 @@
     <div class="container">
         <header>
             <h1>Pending IQA Submissions</h1>
-            <p class="subtitle">Real-time view of learners awaiting Internal Quality Assurance review</p>
+            <p class="subtitle">View of learners awaiting Internal Quality Assurance review</p>
             
             <div class="status-bar">
                 <div class="status-card">
@@ -315,8 +317,12 @@
                 </div>
                 <div class="status-card">
                     <div class="number" id="assessment-types">0</div>
-                    <div class="label">Assessment Types</div>
+                    <div class="label">Portfolio Types</div>
                 </div>
+            </div>
+            
+            <div style="font-size: 12px; color: #666; margin-top: 20px; text-align: right;">
+                <span id="last-updated-header"></span>
             </div>
         </header>
 
@@ -329,12 +335,11 @@
             </div>
 
             <div class="controls">
-                <button onclick="location.reload()">Refresh Data</button>
                 <input 
                     type="text" 
                     class="search-box" 
                     id="search-input" 
-                    placeholder="Search by learner name or assessment..."
+                    placeholder="Search by learner name or portfolio..."
                     onkeyup="filterTable()"
                 >
             </div>
@@ -345,8 +350,6 @@
                     <p>Loading pending IQA submissions...</p>
                 </div>
             </div>
-
-            <div class="last-updated" id="last-updated"></div>
         </div>
     </div>
 
@@ -418,9 +421,8 @@
                     <thead>
                         <tr>
                             <th>Learner Name</th>
-                            <th>Assessment Type</th>
+                            <th>Portfolio</th>
                             <th>Pending Count</th>
-                            <th>Type</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -438,11 +440,6 @@
                             ${index === 0 ? `<td rowspan="${learner.assessments.length}"><strong>${learner.name}</strong></td>` : ''}
                             <td>${assessment.name}</td>
                             <td><span class="count-badge">${assessment.count}</span></td>
-                            <td>
-                                ${assessment.isAssessor 
-                                    ? '<span class="assessor-badge">Assessor</span>' 
-                                    : '<span class="learner-badge">Learner</span>'}
-                            </td>
                         </tr>
                     `;
                 });
@@ -500,7 +497,7 @@
             if (timestamp) {
                 const date = new Date(timestamp);
                 const formatted = date.toLocaleString('en-GB');
-                document.getElementById('last-updated').textContent = `Last updated: ${formatted}`;
+                document.getElementById('last-updated-header').textContent = `Data from: ${formatted}`;
             }
         }
 
