@@ -459,6 +459,7 @@
             const byLearner = {};
             let totalSubmissions = 0;
             const portfolios = new Set();
+            let insertionOrder = []; // Track insertion order for pending view
 
             data.forEach(row => {
                 const learnerId = row[0]; // User ID
@@ -482,6 +483,7 @@
                         name: learnerName,
                         assessments: []
                     };
+                    insertionOrder.push(learnerId);
                 }
 
                 byLearner[learnerId].assessments.push({
@@ -538,13 +540,15 @@
                     <tbody>
             `;
 
-            // Sort learners by name
-            const sortedLearners = Object.values(byLearner).sort((a, b) => 
-                a.name.localeCompare(b.name)
-            );
-
-            // For done view, sort assessments by passed date (most recent first)
-            if (viewType === 'done') {
+            // Sort based on view type
+            let sortedLearners;
+            
+            if (viewType === 'pending') {
+                // Keep API order (oldest first, most recent last)
+                sortedLearners = insertionOrder.map(id => byLearner[id]);
+            } else {
+                // Done view: sort by passed date (most recent first)
+                sortedLearners = insertionOrder.map(id => byLearner[id]);
                 sortedLearners.forEach(learner => {
                     learner.assessments.sort((a, b) => {
                         if (!a.passedAt || !b.passedAt) return 0;
