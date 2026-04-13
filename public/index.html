@@ -464,31 +464,33 @@
             data.forEach(row => {
                 const learnerId = row[0]; // User ID
                 const learnerName = row[1]; // Learner Name
-                const portfolioName = row[2]; // Portfolio Name
-                const count = parseInt(row[3]) || 0; // Count
+                const assessorName = row[2]; // Assessor Name
+                const portfolioName = row[3]; // Portfolio Name
+                const count = parseInt(row[4]) || 0; // Count
 
                 portfolios.add(portfolioName);
 
                 // Column indices based on sheet structure:
-                // 0: User ID, 1: Learner Name, 2: Portfolio, 3: Count
-                // 4: Is Assessor, 5: Submitted At (pending) / Passed At (done)
-                // 6: Last Updated (pending) / Passed By (done) / Last Updated (done)
+                // 0: User ID, 1: Learner Name, 2: Assessor Name, 3: Portfolio, 4: Count
+                // 5: Is Assessor, 6: Submitted At (pending) / Passed At (done)
+                // 7: Last Updated (pending) / Passed By (done), 8: Last Updated (done)
                 let submittedAt = null;
                 let passedAt = null;
                 let passedBy = null;
 
                 if (viewType === 'pending') {
-                    // Pending columns: User ID | Learner Name | Portfolio | Count | Is Assessor | Submitted At | Last Updated
-                    submittedAt = row[5]; // Submitted At is column 5
+                    // Pending columns: User ID | Learner Name | Assessor Name | Portfolio | Count | Is Assessor | Submitted At | Last Updated
+                    submittedAt = row[6]; // Submitted At is column 6
                 } else if (viewType === 'done') {
-                    // Done columns: User ID | Learner Name | Portfolio | Count | Is Assessor | Passed At | Passed By | Last Updated
-                    passedAt = row[5]; // Passed At is column 5
-                    passedBy = row[6]; // Passed By is column 6
+                    // Done columns: User ID | Learner Name | Assessor Name | Portfolio | Count | Is Assessor | Passed At | Passed By | Last Updated
+                    passedAt = row[6]; // Passed At is column 6
+                    passedBy = row[7]; // Passed By is column 7
                 }
 
                 if (!byLearner[learnerId]) {
                     byLearner[learnerId] = {
                         name: learnerName,
+                        assessorName: assessorName || '',
                         assessments: []
                     };
                     insertionOrder.push(learnerId);
@@ -534,6 +536,7 @@
                     <thead>
                         <tr>
                             <th>Learner Name</th>
+                            <th>Assessor</th>
                             <th>Portfolio</th>
                             <th>Pending Count</th>`;
 
@@ -573,9 +576,11 @@
 
             sortedLearners.forEach(learner => {
                 learner.assessments.forEach((assessment, index) => {
+                    const isFirst = index === 0;
                     html += `
-                        <tr>
-                            ${index === 0 ? `<td rowspan="${learner.assessments.length}"><strong>${learner.name}</strong></td>` : ''}
+                        <tr data-portfolio="${assessment.name.replace(/"/g, '&quot;').toLowerCase()}"${isFirst ? ' data-is-first="true"' : ''}>
+                            ${isFirst ? `<td rowspan="${learner.assessments.length}"><strong>${learner.name}</strong></td>` : ''}
+                            ${isFirst ? `<td rowspan="${learner.assessments.length}">${learner.assessorName || ''}</td>` : ''}
                             <td>${assessment.name}</td>
                             <td><span class="count-badge">${assessment.count}</span></td>`;
 
@@ -634,20 +639,14 @@
             // Get all rows as an array
             const allRows = Array.from(document.querySelectorAll('tbody tr'));
 
-            // Get the view type to know how many columns
-            const headerCells = document.querySelectorAll('thead th');
-            const isDoneView = headerCells.length > 3; // Done view has more columns
-
             // Filter which rows should be visible
             const visibleRows = allRows.filter(row => {
-                const cells = row.querySelectorAll('td');
                 const text = row.textContent.toLowerCase();
                 const matchesSearch = text.includes(searchTerm);
 
                 let matchesPortfolio = true;
-                if (portfolioFilter && cells.length > 1) {
-                    const portfolioCell = cells[1].textContent.toLowerCase();
-                    matchesPortfolio = portfolioCell === portfolioFilter;
+                if (portfolioFilter) {
+                    matchesPortfolio = (row.getAttribute('data-portfolio') || '') === portfolioFilter;
                 }
 
                 return matchesSearch && matchesPortfolio;
@@ -656,52 +655,63 @@
             // Clear the table body
             table.innerHTML = '';
 
-            // Rebuild table with correct rowspans
+            // Rebuild table with correct rowspans.
+            // Rows that are the first in a learner group are marked with data-is-first="true".
+            // First rows contain: learnerTd, assessorTd, portfolioTd, countTd, ...
+            // Non-first rows contain: portfolioTd, countTd, ...
             let currentLearner = null;
+            let currentAssessor = null;
             let learnerRows = [];
 
-            visibleRows.forEach((row, index) => {
+            visibleRows.forEach(row => {
                 const cells = Array.from(row.querySelectorAll('td'));
-                const learnerName = cells[0] ? cells[0].textContent.trim() : '';
+                const isFirst = row.getAttribute('data-is-first') === 'true';
 
-                if (learnerName && learnerName !== '') {
-                    // This is a new learner
-                    if (currentLearner && learnerRows.length > 0) {
-                        // Add the previous learner's rows
-                        addLearnerRows(table, currentLearner, learnerRows, isDoneView);
+                if (isFirst) {
+                    // Flush previous learner group
+                    if (currentLearner !== null) {
+                        addLearnerRows(table, currentLearner, currentAssessor, learnerRows);
                     }
-                    currentLearner = learnerName;
-                    learnerRows = [cells];
-                } else if (currentLearner) {
-                    // This is a continuation of the current learner
-                    learnerRows.push(cells);
+                    // cells[0] = learner name, cells[1] = assessor name, cells[2..] = data cols
+                    currentLearner = cells[0] ? cells[0].textContent.trim() : '';
+                    currentAssessor = cells[1] ? cells[1].innerHTML : '';
+                    learnerRows = [cells.slice(2)]; // keep only the data cells
+                } else if (currentLearner !== null) {
+                    // Continuation of current learner — cells[0..] are all data cols
+                    learnerRows.push(cells.slice(0));
                 }
             });
 
-            // Don't forget the last learner
-            if (currentLearner && learnerRows.length > 0) {
-                addLearnerRows(table, currentLearner, learnerRows, isDoneView);
+            // Flush the last learner group
+            if (currentLearner !== null) {
+                addLearnerRows(table, currentLearner, currentAssessor, learnerRows);
             }
         }
 
-        function addLearnerRows(table, learnerName, rowCells, isDoneView) {
+        function addLearnerRows(table, learnerName, assessorName, rowCells) {
             rowCells.forEach((cells, index) => {
                 const tr = document.createElement('tr');
 
                 if (index === 0) {
-                    // First row: add learner name cell with rowspan
+                    // Learner name cell (rowspan)
                     const learnerCell = document.createElement('td');
                     learnerCell.innerHTML = `<strong>${learnerName}</strong>`;
                     learnerCell.rowSpan = rowCells.length;
                     tr.appendChild(learnerCell);
+
+                    // Assessor name cell (rowspan)
+                    const assessorCell = document.createElement('td');
+                    assessorCell.innerHTML = assessorName || '';
+                    assessorCell.rowSpan = rowCells.length;
+                    tr.appendChild(assessorCell);
                 }
 
-                // Add remaining cells (portfolio, count, passed at, passed by, etc)
-                for (let i = 1; i < cells.length; i++) {
+                // Add data cells (portfolio, count, submitted/passed at, etc.)
+                cells.forEach(cell => {
                     const td = document.createElement('td');
-                    td.innerHTML = cells[i].innerHTML;
+                    td.innerHTML = cell.innerHTML;
                     tr.appendChild(td);
-                }
+                });
 
                 table.appendChild(tr);
             });
